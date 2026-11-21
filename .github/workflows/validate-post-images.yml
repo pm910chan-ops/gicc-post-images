@@ -1,0 +1,42 @@
+name: Check public GICC post JPEGs
+on:
+  push:
+    paths:
+      - 'posts/*.jpg'
+      - 'posts/*.jpeg'
+      - 'posts/*.png'
+  pull_request:
+    paths:
+      - 'posts/*.jpg'
+      - 'posts/*.jpeg'
+      - 'posts/*.png'
+permissions:
+  contents: read
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up free image checks
+        run: python3 -m pip install --disable-pip-version-check 'Pillow>=10,<14'
+      - name: Validate images
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          from PIL import Image
+          checked=0
+          for p in Path('posts').glob('*'):
+              if p.suffix.lower() not in ('.jpg','.jpeg','.png'):
+                  continue
+              with Image.open(p) as im:
+                  assert im.size==(1080,1350),f'{p}: unexpected {im.size}'
+                  assert im.format in ('JPEG','PNG'),f'{p}: unexpected {im.format}'
+                  if im.format=='JPEG':
+                      assert p.stat().st_size<8*1024*1024,f'{p}: exceeds 8MB'
+              print(f'PASS {p}: 1080×1350, {p.stat().st_size} bytes')
+              checked+=1
+          assert checked>0,'No candidate images in posts/'
+          print(f'{checked} images validated. This does not publish to Instagram.')
+          PY
