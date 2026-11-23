@@ -1,1 +1,0 @@
-# gicc-post-images
