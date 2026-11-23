@@ -1,0 +1,32 @@
+name: Publish preview JPEGs
+on:
+  push:
+    paths:
+      - 'previews/*.svg'
+      - '.github/workflows/publish-preview-jpegs.yml'
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Decode original JPEGs from SVG containers
+        run: |
+          python3 - <<'PY'
+          import base64,re,pathlib
+          for p in pathlib.Path('previews').glob('2026-11-23-*.svg'):
+              b=p.read_text()
+              m=re.search(r'data:image/jpeg;base64,([A-Za-z0-9+/=]+)',b)
+              if not m: raise ValueError(str(p))
+              out=p.with_suffix('.jpg')
+              out.write_bytes(base64.b64decode(m.group(1)))
+              print(out,out.stat().st_size)
+          PY
+      - name: Commit public preview JPEGs
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add previews/*.jpg
+          git diff --cached --quiet || (git commit -m "Publish original 2026-11-23 JPEG previews" && git push)
